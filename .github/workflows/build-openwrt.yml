@@ -1,0 +1,182 @@
+#
+# Copyright (C) 2019-2021 P3TERX <https://p3terx.com>
+# Copyright (C) 2022 jellybean13
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+# https://github.com/jellybean13/Actions-OpenWrt
+# File: .github/workflows/build-openwrt.yml
+# Description: Building OpenWrt custom firmware using GitHub Actions.
+#
+
+name: Build OpenWrt firmware
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+
+env:
+  REPO_URL: https://git.openwrt.org/openwrt/openwrt.git
+  REPO_BRANCH: openwrt-21.02
+  APPLY_FEEDS_SCRIPT: apply-custom_feeds.sh
+  APPLY_OVERLAY_SCRIPT: apply-custom_overlay.sh
+  APPLY_PATCHES_SCRIPT: apply-custom_patches.sh
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_TO_COWTRANSFER: false
+  UPLOAD_TO_WETRANSFER: false
+  UPLOAD_TO_GITHUB_RELEASES: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout current repository
+      uses: actions/checkout@main
+
+    - name: Initialize building environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo timedatectl set-timezone "$TZ"
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get update
+        sudo -E apt-get -y install build-essential ccache ecj fastjar file g++ gawk gettext git \
+                                   java-propose-classpath libelf-dev libncurses5-dev libncursesw5-dev \
+                                   libssl-dev python python2.7-dev python3 python3-distutils \
+                                   python3-setuptools python3-dev qemu-utils rsync subversion \
+                                   swig time unzip wget xsltproc zlib1g-dev
+        sudo -E apt-get -y autoremove --purge
+        sudo -E apt-get -y clean
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: Apply custom feeds
+      run: |
+        chmod +x $APPLY_FEEDS_SCRIPT
+        $GITHUB_WORKSPACE/$APPLY_FEEDS_SCRIPT
+
+    - name: Update the feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Apply custom overlay
+      run: |
+        chmod +x $APPLY_OVERLAY_SCRIPT
+        $GITHUB_WORKSPACE/$APPLY_OVERLAY_SCRIPT
+
+    - name: Apply custom patches
+      run: |
+        chmod +x $APPLY_PATCHES_SCRIPT
+        $GITHUB_WORKSPACE/$APPLY_PATCHES_SCRIPT
+
+    - name: Download required packages
+      id: package
+      run: |
+        cd openwrt
+        make -j$(nproc) defconfig download
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile OpenWrt firmware
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "Compiling OpenWrt firmware using $(nproc) thread(s)..."
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "::set-output name=status::success"
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: Check storage usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: openwrt/bin
+
+    - name: Organize output files
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "::set-output name=status::success"
+
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: Upload firmware to CowTransfer
+      id: cowtransfer
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_TO_COWTRANSFER == 'true' && !cancelled()
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer cow --block 2621440 -s -p 64 --no-progress ${FIRMWARE} 2>&1 | tee cowtransfer.log
+        echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
+        echo "::set-output name=url::$(cat cowtransfer.log | grep https | cut -f3 -d" ")"
+
+    - name: Upload firmware to WeTransfer
+      id: wetransfer
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_TO_WETRANSFER == 'true' && !cancelled()
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
+        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
+        echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
+
+    - name: Generate GitHub release tag
+      id: tag
+      if: env.UPLOAD_TO_GITHUB_RELEASES == 'true' && !cancelled()
+      run: |
+        echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+        touch release.txt
+        [ $UPLOAD_TO_COWTRANSFER = true ] && echo "🔗 [Cowtransfer](${{ steps.cowtransfer.outputs.url }})" >> release.txt
+        [ $UPLOAD_TO_WETRANSFER = true ] && echo "🔗 [WeTransfer](${{ steps.wetransfer.outputs.url }})" >> release.txt
+        echo "::set-output name=status::success"
+
+    - name: Upload firmware to GitHub releases
+      uses: softprops/action-gh-release@v1
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
+
+    - name: Remove workflow runs
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
+
+    - name: Remove obsolete releases
+      uses: dev-drprasad/delete-older-releases@v0.1.0
+      if: env.UPLOAD_TO_GITHUB_RELEASES == 'true' && !cancelled()
+      with:
+        keep_latest: 3
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
