@@ -1,0 +1,11 @@
+--- a/package/kernel/linux/modules/netdevices.mk	2022-03-08 10:22:27.590439000 +0800
++++ b/package/kernel/linux/modules/netdevices.mk	2022-03-08 10:41:34.151851272 +0800
+@@ -1178,7 +1178,7 @@
+ define KernelPackage/igc
+   SUBMENU:=$(NETWORK_DEVICES_MENU)
+   TITLE:=Intel(R) Ethernet Controller I225 Series support
+-  DEPENDS:=@PCI_SUPPORT
++  DEPENDS:=@PCI_SUPPORT +kmod-ptp
+   KCONFIG:=CONFIG_IGC
+   FILES:=$(LINUX_DIR)/drivers/net/ethernet/intel/igc/igc.ko
+   AUTOLOAD:=$(call AutoProbe,igc)

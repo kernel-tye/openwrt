@@ -1,0 +1,146 @@
+Changed configurations:
+    Target System: Atheros ATH79 --> x86
+    Subtarget: Generic --> x86_64
+    Target Images:
+        [*] Kernel partition size (in MB): 16 --> 64
+        [*] Root filesystem partition size (in MB): 104 --> 416
+    Global build settings:
+        [*] Compile with full language support
+    Advanced configuration options (for developers):
+        Toolchain Options:
+            [*] Include crypt() support for SHA256, SHA512 and Blowfish cipher
+    Base system:
+        dnsmasq --> dnsmasq-full
+        dropbear:
+            Configuration:
+                [*] Elliptic curve cryptography (ECC):
+                    [*] Elliptic curve cryptography (ECC), full support
+                [*] Enable compression
+        procd:
+            Configuration:
+                [*] Print the shutdown to the console as well as logging it to syslog
+        <*> zram-swap
+    Administration:
+        <*> htop
+        <*> ipmitool
+    Kernel modules:
+        Netfilter Extensions:
+            <*> kmod-ipt-raw6
+        Network Devices:
+            <*> kmod-i40e
+            <*> kmod-igc
+    LuCI:
+        Collections:
+            <*> luci-ssl-nginx
+        Modules:
+            Translations:
+                <*> Arabic (ar)
+                <*> Bulgarian (bg)
+                <*> Bengali (bn_BD)
+                <*> Catalan (ca)
+                <*> Czech (cs)
+                <*> German (de)
+                <*> Greek (el)
+                <*> English (en)
+                <*> Spanish (es)
+                <*> Finnish (fi)
+                <*> French (fr)
+                <*> Hebrew (he)
+                <*> Hindi (hi)
+                <*> Hungarian (hu)
+                <*> Italian (it)
+                <*> Japanese (ja)
+                <*> Korean (ko)
+                <*> Marathi (mr)
+                <*> Malay (ms)
+                <*> Norwegian (nb_NO)
+                <*> Dutch (nl)
+                <*> Polish (pl)
+                <*> Portuguese (pt)
+                <*> Brazilian Portuguese (pt_BR)
+                <*> Romanian (ro)
+                <*> Russian (ru)
+                <*> Slovak (sk)
+                <*> Swedish (sv)
+                <*> Turkish (tr)
+                <*> Ukrainian (uk)
+                <*> Vietnamese (vi)
+                <*> Chinese Simplified (zh_Hans)
+                <*> Chinese Traditional (zh_Hant)
+            <*> luci-mod-dashboard
+        Applications:
+            <*> luci-app-advanced-reboot
+            <*> luci-app-hd-idle
+            <*> luci-app-sqm
+            <*> luci-app-statistics
+            <*> luci-app-upnp
+            <*> luci-app-watchcat
+            <*> luci-app-wol
+        Themes:
+            <*> luci-theme-material
+            <*> luci-theme-openwrt
+            <*> luci-theme-openwrt-2020
+        Protocols:
+            <*> luci-proto-bonding
+    Network:
+        File Transfer:
+            <*> curl
+            <*> wget-ssl
+        Firewall:
+            ip6tables:
+                <*> ip6tables-extra
+                <*> ip6tables-mod-nat
+            <*> iptables-mod-extra
+            <*> iptables-mod-tproxy
+        Routing and Redirection:
+            <*> bird2
+            <*> ip-full
+            tc-tiny --> tc-full
+        <*> iftop
+        <*> iperf3-ssl
+        <*> ipset
+        <*> mtr
+        <*> pingcheck
+        <*> socat:
+            [*] SSL support
+    Utilities:
+        Editors:
+            <*> nano
+            <*> vim-full
+        Terminal:
+            <*> screen
+        collectd:
+            [*] Enable ability to use encrypted networking
+            <*> collectd-mod-cpufreq
+            <*> collectd-mod-curl
+            <*> collectd-mod-df
+            <*> collectd-mod-dhcpleases
+            <*> collectd-mod-disk
+            <*> collectd-mod-dns
+            <*> collectd-mod-ethstat
+            <*> collectd-mod-iptables
+            <*> collectd-mod-irq
+            <*> collectd-mod-netlink
+            <*> collectd-mod-nginx
+            <*> collectd-mod-ping
+            <*> collectd-mod-sensors
+            <*> collectd-mod-smart
+            <*> collectd-mod-sqm
+            <*> collectd-mod-swap
+            <*> collectd-mod-thermal
+            <*> collectd-mod-uptime
+            <*> collectd-mod-vmem
+        <*> dmidecode
+        <*> jq
+        <*> less-wide
+        <*> lscpu
+        <*> lsof
+        <*> open-vm-tools-fuse
+        <*> pciutils
+        <*> powertop
+        <*> shadow-utils
+        <*> smartd
+        <*> smartmontools
+        <*> smartmontools-drivedb
+        <*> usbutils
+

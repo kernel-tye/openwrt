@@ -1,0 +1,58 @@
+#
+# Copyright (C) 2019-2021 P3TERX <https://p3terx.com>
+# Copyright (C) 2022 jellybean13
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+# https://github.com/jellybean13/Actions-OpenWrt
+# File: .github/workflows/update-checker.yml
+# Description: OpenWrt source code update checker.
+#
+
+name: OpenWrt source code update checker
+
+env:
+  REPO_URL: https://git.openwrt.org/openwrt/openwrt.git
+  REPO_BRANCH: openwrt-21.02
+
+on:
+  workflow_dispatch:
+#  schedule:
+#    - cron: 0 */18 * * *
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Get commit hash
+      id: getCommitHash
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
+        echo "::set-output name=commitHash::$(git rev-parse HEAD)"
+
+    - name: Compare commit hash
+      id: compareCommitHash
+      uses: actions/cache@v2
+      with:
+        path: .commitHash
+        key: HEAD-${{ steps.getCommitHash.outputs.commitHash }}
+
+    - name: Save new commit hash
+      if: steps.compareCommitHash.outputs.cache-hit != 'true'
+      run: |
+        echo ${{ steps.getCommitHash.outputs.commitHash }} | tee .commitHash
+
+    - name: Trigger building process
+      if: steps.compareCommitHash.outputs.cache-hit != 'true'
+      uses: peter-evans/repository-dispatch@v1
+      with:
+        token: ${{ secrets.ACTIONS_TRIGGER_PAT }}
+        event-type: Source Code Update
+
+    - name: Remove workflow runs
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 1
